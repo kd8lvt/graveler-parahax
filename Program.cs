@@ -11,8 +11,10 @@ namespace GravelerParaHax
         private static string version = "1.0.0";
         private static DateTime prevUpdateTime = start;
         private static TimeSpan prevEstimate = TimeSpan.Zero;
+        private static int safeTurns = 54; //Graveler has 54 status move PP to burn
         private static bool austinMode = false;
         private static string[] prevBuffer = { "", "", "", "", "" };
+        private static int reqParaTurns = 177;
         public static void Main(string[] args)
         {
             if (args.Any(arg => arg.ToLower() == "--austinmode" || arg.ToLower() == "-a")) austinMode = true;
@@ -34,25 +36,23 @@ namespace GravelerParaHax
             int[] rolls = new int[4];
             for (int trial = 0; trial < iterations; trial++)
             {
-                rolls = new int[4];
-                for (int streak = 0; streak < 177; streak++)
+                rolls = new int[] { (austinMode ? 0 : safeTurns), 0, 0, 0 };
+                for (int streak = (austinMode?0:safeTurns); streak <= reqParaTurns; streak++)
                 {
-                    int roll = random.Next(1, 4);
-                    rolls[roll - 1]++;
+                    int roll = random.Next(0, 3);
+                    rolls[roll]++;
                     /*
-                     * Austin's code was egregiously slow mainly because it rolled every turn, even if a non-paralyzed turn had already been rolled.
-                     * There is no reason to do this - in fact it skews the numbers towards the best-case scenario, where every paralysis happens in a row!
-                     * That's why my implementation returns much lower numbers, in the 15-25 range instead of 90+.
+                     * Austin's code was egregiously slow mainly because it rolled every turn, even if an unsafe non-paralyzed turn had already been rolled.
                      * You can use the --austinMode cli argument to switch this optimization/accuracy off.
                      * Just know, it makes the program take up to a half hour on my machine! (Which is still an improvement of ~41,000% over Austin's implementation >.>)
                      * 
                      */
-                    if (!austinMode && roll != 1) break;
+                    if (!austinMode && roll != 0) break;
                 }
                 bestTrial = (rolls[0] > bestStreak ? trial : bestTrial);
                 bestStreak = (rolls[0] > bestStreak ? rolls[0] : bestStreak);
                 if (trial % 10_000 == 0) UpdateScreen(trial, bestTrial, bestStreak);
-                if (bestStreak == 176) return;
+                if (bestStreak >= reqParaTurns) return;
 
                 DateTime now = DateTime.UtcNow;
                 avg.Update(now - prevUpdateTime);
@@ -78,7 +78,7 @@ namespace GravelerParaHax
             buffer[1] = "Should be done on: " + (estFinish.ToShortDateString()) + " at " + estFinish.ToShortTimeString() + " UTC";
             buffer[2] = "Estimated run duration remaining: " + LongTimeString(estComplete);
             buffer[3] = "Best Trial: " + bestTrial + "       ";
-            buffer[4] = "Best Streak: " + bestStreak + "/176";
+            buffer[4] = "Best Streak: " + bestStreak + "/" + reqParaTurns;
             for (int i = 0; i < 5; i++)
             {
                 if (buffer[i].Equals(prevBuffer[i])) continue;
